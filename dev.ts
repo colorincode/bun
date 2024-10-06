@@ -191,9 +191,9 @@ async function main() {
     if (!isBuilding) {
       await buildProject();
     }
-    // } else {
-    //   clients.forEach(client => client.send("reload"));
-    // }
+     else {
+      clients.forEach(client => client.send("reload"));
+    }
   });
 
   watch("dist", { recursive: true }, () => {
