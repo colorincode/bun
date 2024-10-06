@@ -1,0 +1,13 @@
+body {
+    background-color: rgba(0, 0, 0, 0.915);
+background-color: blue;
+color: red;
+}
+
+.myclass {
+    color: beige;
+}
+/* 
+.otherClassName {
+    composes: className from './style.css';
+  } */
