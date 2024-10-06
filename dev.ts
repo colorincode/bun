@@ -190,14 +190,17 @@ async function main() {
   watch("src", { recursive: true }, async () => {
     if (!isBuilding) {
       await buildProject();
+    }
     // } else {
     //   clients.forEach(client => client.send("reload"));
     // }
   });
+
   watch("dist", { recursive: true }, () => {
     clients.forEach(client => client.send("reload"));
   });
 }
+
 
 main().catch(console.error);
 
