@@ -11,8 +11,6 @@
     "forceConsistentCasingInFileNames": false,
     "incremental": true,
     "noFallthroughCasesInSwitch": true,
-    "emitDeclarationOnly": true,
-    "allowImportingTsExtensions": true,
     "jsx": "preserve",
     "moduleDetection": "force",
     "types": ["bun-types"],

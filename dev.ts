@@ -166,6 +166,8 @@ async function startServer() {
       websocket: {
         message(ws, message) {
           // Handle WebSocket messages if needed
+          console.log(`Received message: ${message}`);
+          ws.send(`Echo: ${message}`);
         },
         open(ws) {
           clients.add(ws);
@@ -188,7 +190,12 @@ async function main() {
   watch("src", { recursive: true }, async () => {
     if (!isBuilding) {
       await buildProject();
-    }
+    // } else {
+    //   clients.forEach(client => client.send("reload"));
+    // }
+  });
+  watch("dist", { recursive: true }, () => {
+    clients.forEach(client => client.send("reload"));
   });
 }
 
