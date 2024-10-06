@@ -1,0 +1,54 @@
+// string replace and interpolation for sass, you will need this for some fonts and anything with escapable/string characters
+@function str-replace($string, $search, $replace: "") {
+	$index: str-index($string, $search);
+
+	@if $index {
+		@return str-slice($string, 1, $index - 1) + $replace +
+			str-replace(str-slice($string, $index + str-length($search)), $search, $replace);
+	}
+
+	@return $string;
+}
+
+// potential vendor prefix mixin, need to test better 
+@mixin vendor--prefix($name, $value) {
+    @each $vendor in ('-webkit-', '-moz-', '-ms-', '-o-', '') {
+        #{$vendor}#{$name}: #{$value};
+    }
+} 
+
+// mixin to add a reset-list quickly to body / list style elements 
+@mixin reset--list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+// needs an update for breakpoints, and needs some rewriting since native css now supports nesting across all browsers
+// the scss vars should probably just change to normal css vars, but they need to target root in dom for that to work
+$breakpoints: ( 
+    "phone" : 415px, 
+    "tablet-small": 640px, 
+    "tablet" : 768px, 
+    "tablet-wide" : 1024px, 
+    "desktop" : 1248px, 
+    "ultra-wide": 2560px);
+@mixin mq($width, $type: min) {
+    @if map_has_key($breakpoints, $width) {
+        $width: map_get($breakpoints, $width);
+        @if $type==max {
+            $width: $width - 1px;
+        }
+        @media only screen and (#{$type}-width: $width) {
+            @content;
+        }
+    }
+}
+
+// font face property helper, bring it into scss/css files, no need to mix in..yet
+// @font-face {
+//     font-family: quote($name);
+//     font-style: $style;
+//     font-weight: $weight;
+//     font-display: swap;
+//     src: $src;
+// }
