@@ -1,0 +1,13 @@
+// _colors.scss
+$primary-blue: #3498db;
+$secondary-green: #2ecc71;
+$accent-orange: #e67e22;
+$warning-red: #e74c3c;
+
+@function lighten-color($color, $percentage) {
+  @return mix(white, $color, $percentage);
+}
+
+@mixin apply-color($property, $color) {
+  #{$property}: $color;
+}

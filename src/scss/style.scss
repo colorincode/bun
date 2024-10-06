@@ -1,0 +1,65 @@
+// @use 'colors' as c;
+@use './helpers.scss' as *;
+@import url("https://use.typekit.net/piq5ctv.css");
+
+
+@font-face {
+    font-family: "Rift", sans-serif;
+    src: url("https://use.typekit.net/piq5ctv.css");
+    font-display: swap;
+}
+body {
+  background-color: rgba(0, 0, 0, 0.915);
+/* background-color: blue; */
+  color: rgb(251, 251, 251);
+}
+
+.myclass {
+    color: beige;
+}
+/*resets*/
+body,html {
+    margin:0;
+    padding:0;
+}
+h1,h2,h3,h4,h5,h6 {
+    font-family: "Rift", sans-serif;
+}
+p, input, textarea, blockquote {
+  font-family: "Rift", sans-serif;
+}
+
+
+.test-forward-use {
+  max-width: 800px;
+  margin: 30px auto;
+  padding: 20px;
+  border: 3px solid $primary-blue;
+  background-color: lighten-color($secondary-green, 70%);
+
+  h2 {
+    @include apply-color(color, $primary-blue);
+    margin-bottom: 15px;
+  }
+
+  p {
+    color: $accent-orange;
+    margin-bottom: 10px;
+  }
+
+  .warning {
+    @include apply-color(color, $warning-red);
+    font-weight: bold;
+  }
+
+  // This style should be tree-shaken if unused
+  .unused-style {
+    background-color: purple;
+    font-size: 72px;
+    text-transform: uppercase;
+  }
+}
+/* 
+.otherClassName {
+    composes: className from './style.css';
+  } */
