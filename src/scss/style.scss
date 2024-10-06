@@ -32,6 +32,21 @@ main {
   display: grid;
   // border:2px solid blue;
 }
+// html {
+//   color-scheme: light dark;
+// }
+
+// html[data-theme=light] {
+//   color-scheme: light;
+// }
+
+// html[data-theme=dark] {
+//   color-scheme: dark;
+// }
+
+// button {
+//   background: light-dark(#aaa, #444);
+// }
 
 .test-forward-use {
   max-width: 800px;
