@@ -1,0 +1,18 @@
+{
+    "bracketSpacing": false,
+    "endOfLine": "lf",
+    "singleQuote": true,
+    "trailingComma": "all",
+    "arrowParens": "avoid",
+    "tabWidth": 2,
+    "overrides": [
+      {
+        "files": [
+          "node_modules"
+        ],
+        "options": {
+          "trailingComma": "es5"
+        }
+      }
+    ]
+  }
