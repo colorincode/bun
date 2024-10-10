@@ -127,6 +127,8 @@ async function buildProject() {
       await Bun.write(destPath, Bun.file(file));
       await mkdir(path.dirname(destPath), { recursive: true });
     }
+
+    
   }
 
   console.log("Build completed. Buns fresh off the oven.");
@@ -134,33 +136,38 @@ async function buildProject() {
       console.error("Build error:", error);
     } finally {
       isBuilding = false;
+    
     }
   }
-  async function lintStyles(distDir: string) {
-    const cssFiles = path.join(distDir, 'css', '**', '*.css');
-  
-    const result = await stylelint.lint({
-      files: cssFiles,
-      config: stylelintConfig,
-      fix: true, // Automatically fix issues if possible
-    });
-  
-    if (result.errored) {
-      console.error("Linting errors found:");
-      result.results.forEach(fileResult => {
-        if (fileResult.warnings.length) {
-          console.error(`  ${fileResult.source}:`);
-          fileResult.warnings.forEach(warning => {
-            console.error(`    Line ${warning.line}, Column ${warning.column}: ${warning.text}`);
-          });
-        }
-      });
-      return false;
-    } else {
-      console.log("Linting passed successfully.");
-      return true;
-    }
-  }
+  // async function lintStyles(distDir: string) {
+  //   // const cssFiles = path.join(distDir, 'css', '*.css');
+  //   // const lazy = postcss([autoprefixer]).process(css);
+  //   const config = await stylelint.resolveConfig('stylelintConfig');
+  //   const cssDir = path.join(distDir, 'css');
+  //   const cssFiles = ['*.css', '/**.css'];
+  //   const result = await stylelint.lint({
+  //     cwd: path.dirname(cssDir),
+  //     files: cssFiles,
+  //     config: config,
+  //     // configBasedir: url.fileURLToPath(new URL("configs", import.meta.url)),
+  //     fix: true, // Automatically fix issues if possible
+  //   });
+  //   try {
+  //     const result = await stylelint.lint({
+  //       cwd: path.dirname(cssDir),
+  //       files: cssFiles,
+  //       config: config,
+        
+  //       // configBasedir: url.fileURLToPath(new URL("configs", import.meta.url)),
+  //       fix: true, // Automatically fix issues if possible
+  //     });
+  //     // do things with result.report, result.errored, and result.results
+  //   } catch (err) {
+  //     // do things with err e.g.
+  //     console.error(err.stack);
+  //   }
+  //   return result;
+  // }
 
 async function startServer() {
     const port = await findAvailablePort();
@@ -224,6 +231,8 @@ async function main() {
   watch("dist", { recursive: true }, () => {
     clients.forEach(client => client.send("reload"));
   });
+
+  
 }
 
 

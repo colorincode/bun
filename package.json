@@ -11,14 +11,53 @@
     "clear-prod": "rimraf --glob prod/*",
     "clean": "npm run clear-dist && npm run clear-prod",
     "lint": "bun biome start && bun biome lint --write .",
+    "lint-prod": "stylelint --allow-empty-input \"dist/**/*.css\"",
     "format": "bun biome format --write .",
     "prod": "bun run prod.ts"
   },
+  "prettier": "@stylelint/prettier-config",
+  "eslintConfig": {
+    "extends": [
+      "stylelint"
+    ]
+  },
+  "stylelint": {
+    "extends": [
+      "stylelint-config-recommended",
+      "stylelint-config-sass-guidelines"
+    ],
+    "plugins": [
+      "stylelint-order"
+    ],
+    "overrides": [
+      {
+        "files": ["**/*.scss"],
+        "customSyntax": "postcss-scss"
+      }
+    ],
+    "rules": {
+      "block-no-empty": true,
+      "font-family-no-duplicate-names": true,
+      "keyframe-block-no-duplicate-selectors": true,
+      "no-duplicate-selectors": true,
+      "comment-no-empty": true,
+      "color-no-invalid-hex": true,
+      "declaration-block-no-duplicate-properties": true,
+      "selector-pseudo-class-no-unknown": true,
+      "selector-pseudo-element-no-unknown": true,
+      "property-no-unknown": true,
+      "no-empty-source": true
+
+    }
+  },
   "devDependencies": {
+    "@stylelint/prettier-config": "^3.0.0",
     "@biomejs/biome": "1.9.2",
     "@types/bun": "^1.1.11",
     "@types/node": "^22.7.5",
     "bun-lightningcss": "^0.2.0",
+    "eslint": "^8.57.1",
+    "eslint-config-stylelint": "^22.0.0",
     "postcss": "^8.4.47",
     "postcss-custom-properties": "^14.0.2",
     "postcss-import": "^16.1.0",
@@ -38,6 +77,10 @@
     "lightningcss": "^1.27.0",
     "sass": "^1.79.4",
     "sharp": "^0.33.5",
-    "stylelint": "^16.9.0"
+    "stylelint": "^16.9.0",
+    "stylelint-config-recommended": "^14.0.1",
+    "stylelint-config-sass-guidelines": "^12.1.0",
+    "stylelint-config-standard": "^36.0.1",
+    "stylelint-order": "^6.0.4"
   }
 }
