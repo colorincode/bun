@@ -14,7 +14,8 @@ const clients = new Set<ServerWebSocket<unknown>>();
 import * as sass from "sass";
 import postcss from "postcss";
 import postcssImport from "postcss-import";
-
+import stylelint from 'stylelint';
+import stylelintConfig from './stylelintrc.json';
 plugin(globResolverPlugin());
 
 async function findAvailablePort(startPort: number = 1234): Promise<number> {
@@ -135,7 +136,31 @@ async function buildProject() {
       isBuilding = false;
     }
   }
+  async function lintStyles(distDir: string) {
+    const cssFiles = path.join(distDir, 'css', '**', '*.css');
   
+    const result = await stylelint.lint({
+      files: cssFiles,
+      config: stylelintConfig,
+      fix: true, // Automatically fix issues if possible
+    });
+  
+    if (result.errored) {
+      console.error("Linting errors found:");
+      result.results.forEach(fileResult => {
+        if (fileResult.warnings.length) {
+          console.error(`  ${fileResult.source}:`);
+          fileResult.warnings.forEach(warning => {
+            console.error(`    Line ${warning.line}, Column ${warning.column}: ${warning.text}`);
+          });
+        }
+      });
+      return false;
+    } else {
+      console.log("Linting passed successfully.");
+      return true;
+    }
+  }
 
 async function startServer() {
     const port = await findAvailablePort();
