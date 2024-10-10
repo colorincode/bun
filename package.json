@@ -31,7 +31,6 @@
   },
   "dependencies": {
     "@types/gsap": "^3.0.0",
-    "@types/three": "^0.169.0",
     "@types/websocket": "^1.0.10",
     "browserslist": "^4.24.0",
     "glob": "^11.0.0",
@@ -39,7 +38,6 @@
     "lightningcss": "^1.27.0",
     "sass": "^1.79.3",
     "sharp": "^0.33.5",
-    "stylelint": "^16.9.0",
-    "three": "^0.169.0"
+    "stylelint": "^16.9.0"
   }
 }
