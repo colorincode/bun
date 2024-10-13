@@ -69,6 +69,7 @@ async function buildProject() {
         target: "bun",
         format: "esm",
         sourcemap: "inline",
+        splitting: true, // 
         minify: false,
         plugins: [globResolverPlugin(), BunImageTransformPlugin()],
       });
