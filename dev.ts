@@ -18,6 +18,8 @@ import stylelint from 'stylelint';
 import posthtml from 'posthtml';
 import include from 'posthtml-include';
 import {BunImageTransformPlugin} from "bun-image-transform";
+import { symlink } from "fs/promises";
+import sharp from "sharp";
 Bun.plugin(BunImageTransformPlugin());
 // plugin(BunImageTransformPlugin());
 plugin(globResolverPlugin());
@@ -154,6 +156,55 @@ async function buildProject() {
       isBuilding = false;
     
     }
+    await copyAssets();
+  }
+
+  async function copyAssets() {
+    const assetDir = "./assets";
+    const distAssetDir = "./dist/assets";
+  
+    // create the dist asset directory if it doesn't exist
+    await mkdir(distAssetDir, { recursive: true });
+  
+    // Symlink the entire assets folder
+    try {
+      await symlink(path.resolve(assetDir), path.resolve(distAssetDir), 'dir');
+      console.log("Assets symlinked successfully");
+    } catch (error) {
+      if (error.code !== 'EEXIST') {
+        console.error("Error symlinking assets:", error);
+      }
+    }
+  
+    // Process images with query parameters
+    const allAssetFiles = await getAllFiles(assetDir);
+    for (const asset of allAssetFiles) {
+      if (asset.match(/\.(jpg|jpeg|png|webp|avif)$/i)) {
+        const relativePath = path.relative(assetDir, asset);
+        const destPath = path.join(distAssetDir, relativePath);
+  
+        // Check if the image has query parameters
+        const queryMatch = relativePath.match(/\?(.+)$/);
+        if (queryMatch) {
+          const queryParams = new URLSearchParams(queryMatch[1]);
+          const width = parseInt(queryParams.get('width') || '0');
+          const height = parseInt(queryParams.get('height') || '0');
+          const format = queryParams.get('format');
+  
+          // Optimize and transform the image
+          let sharpInstance = sharp(asset);
+          if (width || height) {
+            sharpInstance = sharpInstance.resize(width || null, height || null);
+          }
+          if (format) {
+            sharpInstance = sharpInstance.toFormat(format as keyof sharp.FormatEnum);
+          }
+  
+          await sharpInstance.toFile(destPath.replace(/\?.*$/, ''));
+          console.log(`Optimized image: ${relativePath}`);
+        }
+      }
+    }
   }
   // async function lintStyles(distDir: string) {
   //   // const cssFiles = path.join(distDir, 'css', '*.css');
@@ -196,6 +247,11 @@ async function startServer() {
         // Serve static files from the dist directory
         let filePath = path.join("./dist", url.pathname);
       
+        // BunImageTransformPlugin({
+        //   outputDirectory: "./build/public/img/",
+        //   useRelativePath: true,
+        //   prefixRelativePath: "img/",
+        // });
         // Serve index.html by default
         if (url.pathname === '/' || url.pathname === '/index.html') {
             filePath = path.join("./dist", 'index.html');
