@@ -15,7 +15,11 @@ import * as sass from "sass";
 import postcss from "postcss";
 import postcssImport from "postcss-import";
 import stylelint from 'stylelint';
-import stylelintConfig from './stylelintrc.json';
+import posthtml from 'posthtml';
+import include from 'posthtml-include';
+import {BunImageTransformPlugin} from "bun-image-transform";
+Bun.plugin(BunImageTransformPlugin());
+// plugin(BunImageTransformPlugin());
 plugin(globResolverPlugin());
 
 async function findAvailablePort(startPort: number = 1234): Promise<number> {
@@ -56,17 +60,17 @@ async function buildProject() {
     try {
       console.log("Building project, buns in the oven...");
       await mkdir(outDir, { recursive: true });
-  
+      
       // Handle TS/JS files
       const tsJsFiles = allSrcFiles.filter(file => file.endsWith(".ts") && !file.endsWith(".d.ts"));
       const result = await Bun.build({
         entrypoints: tsJsFiles,
         outdir: path.join(outDir, 'js'), //this is to rename our dist dir to js not ts
-        target: "browser",
+        target: "bun",
         format: "esm",
         sourcemap: "inline",
         minify: false,
-        plugins: [globResolverPlugin()],
+        plugins: [globResolverPlugin(), BunImageTransformPlugin()],
       });
   
       if (!result.success) {
@@ -115,6 +119,17 @@ async function buildProject() {
     else if (file.endsWith(".html")) {
    
       let htmlContent = await Bun.file(file).text();
+        // Process HTML with posthtml
+        const result = await posthtml([
+          include({ 
+            // root: path.join(srcDir, './partials') ,
+            root: srcDir,
+            onError: (error) => {
+              console.error(`Error including partial: ${error.message}`);
+            }
+          })
+        ]).process(htmlContent);
+      htmlContent = result.html;
       htmlContent = htmlContent
       .replace(/\.scss/g, '.css')
       .replace(/\.\/scss\//g, './css/')

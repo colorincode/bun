@@ -13,7 +13,7 @@
     "noFallthroughCasesInSwitch": true,
     "jsx": "preserve",
     "moduleDetection": "force",
-    "types": ["bun-types"],
+    "types": ["bun-types", "bun-image-transform"],
     "outDir": "./dist",
     "rootDir": "./src",
     "baseUrl": "./src",
@@ -21,6 +21,6 @@
       "~/*": ["./*"]
     }
   },
-  "include": ["src/**/*"],
+  "include": ["src/**/*", "preload.ts"],
   "exclude": ["node_modules", "dist"]
 }

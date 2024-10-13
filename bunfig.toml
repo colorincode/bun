@@ -1,1 +1,1 @@
-preload = ["./globresolver.ts"]
+preload = ["./globresolver.ts", "./preload.ts"]
