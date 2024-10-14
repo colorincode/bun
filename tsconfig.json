@@ -21,6 +21,6 @@
       "~/*": ["./*"]
     }
   },
-  "include": ["src/**/*", "preload.ts"],
+  "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"]
 }
