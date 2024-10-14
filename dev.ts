@@ -91,8 +91,9 @@ async function buildProject() {
       let cssContent;
       if (file.endsWith(".scss")) {
         // Compile SCSS
-        const result = sass.compile(file, {
+        const result = await sass.compileAsync(file, {
           style: "expanded",
+        //  loadPaths: ['./src/scss', './src/scss/fontawesome6-pro']
           loadPaths: [path.dirname(file)],
         });
         cssContent = result.css;
@@ -100,7 +101,7 @@ async function buildProject() {
         // Read CSS file
         cssContent = await Bun.file(file).text();
       }
-
+// console.log("", relativePath, result);
       // Process with PostCSS for optimization and tree shaking
       const postCssResult = await postcss([
         postcssImport(),
@@ -125,8 +126,8 @@ async function buildProject() {
         // Process HTML with posthtml
         const result = await posthtml([
           include({ 
-            // root: path.join(srcDir, './partials') ,
-            root: srcDir,
+            root: path.join(srcDir, './partials') ,
+            // root: srcDir,
             onError: (error) => {
               console.error(`Error including partial: ${error.message}`);
             }
@@ -160,52 +161,110 @@ async function buildProject() {
   }
 
   async function copyAssets() {
+    const srcDir = "./src";
+    const distDir = "./dist";
     const assetDir = "./assets";
-    const distAssetDir = "./dist/assets";
+    const distAssetDir = path.join(distDir, "assets");
   
-    // create the dist asset directory if it doesn't exist
+    // Create the dist asset directory if it doesn't exist
     await mkdir(distAssetDir, { recursive: true });
   
-    // Symlink the entire assets folder
-    try {
-      await symlink(path.resolve(assetDir), path.resolve(distAssetDir), 'dir');
-      console.log("Assets symlinked successfully");
-    } catch (error) {
-      if (error.code !== 'EEXIST') {
-        console.error("Error symlinking assets:", error);
-      }
-    }
+    // Get all files in the src directory
+    const allSrcFiles = await getAllFiles(srcDir);
   
-    // Process images with query parameters
-    const allAssetFiles = await getAllFiles(assetDir);
-    for (const asset of allAssetFiles) {
-      if (asset.match(/\.(jpg|jpeg|png|webp|avif)$/i)) {
-        const relativePath = path.relative(assetDir, asset);
-        const destPath = path.join(distAssetDir, relativePath);
+    // Filter HTML and SCSS files
+    const htmlFiles = allSrcFiles.filter(file => file.endsWith('.html'));
+    const scssFiles = allSrcFiles.filter(file => file.endsWith('.scss'));
   
-        // Check if the image has query parameters
-        const queryMatch = relativePath.match(/\?(.+)$/);
-        if (queryMatch) {
-          const queryParams = new URLSearchParams(queryMatch[1]);
-          const width = parseInt(queryParams.get('width') || '0');
-          const height = parseInt(queryParams.get('height') || '0');
-          const format = queryParams.get('format');
-  
-          // Optimize and transform the image
-          let sharpInstance = sharp(asset);
-          if (width || height) {
-            sharpInstance = sharpInstance.resize(width || null, height || null);
+    // Extract asset references from HTML and SCSS files
+    const assetReferences = new Set();
+    for (const file of [...htmlFiles, ...scssFiles]) {
+      const content = await Bun.file(file).text();
+      const matches = content.match(/url\(['"]?([^'"()]+)['"]?\)|src=['"]([^'"]+)['"]/g) || [];
+      matches.forEach(match => {
+        const assetPath = match.replace(/url\(['"]?|['"]?\)|src=['"]|['"]/g, '');
+        if (!assetPath.startsWith('http') && !assetPath.startsWith('data:')) {
+          // Only add the asset if it's directly in the assets folder
+          if (!path.dirname(assetPath).includes(path.sep)) {
+            assetReferences.add(path.basename(assetPath));
           }
-          if (format) {
-            sharpInstance = sharpInstance.toFormat(format as keyof sharp.FormatEnum);
-          }
-  
-          await sharpInstance.toFile(destPath.replace(/\?.*$/, ''));
-          console.log(`Optimized image: ${relativePath}`);
         }
+      });
+    }
+  
+    // Get all files in the root of the assets directory
+    const assetFiles = await readdir(assetDir);
+  
+    // Copy referenced assets
+    for (const assetFile of assetFiles) {
+      const srcPath = path.join(assetDir, assetFile);
+      const destPath = path.join(distAssetDir, assetFile);
+  
+      // Check if it's a file (not a directory)
+      try {
+        const stats = await stat(srcPath);
+        if (stats.isFile() && assetReferences.has(assetFile)) {
+          try {
+            if (srcPath.match(/\.(jpg|jpeg|png|webp|avif)$/i)) {
+              // Process image with Sharp
+              let sharpInstance = sharp(srcPath);
+              
+              // You can add more image processing options here if needed
+              // For example: sharpInstance = sharpInstance.resize(800, 600);
+        
+              await sharpInstance.toFile(destPath);
+              console.log(`Optimized image: ${assetFile}`);
+            } else {
+              // Copy non-image assets
+              await Bun.write(destPath, Bun.file(srcPath));
+              console.log(`Copied asset: ${assetFile}`);
+            }
+          } catch (error) {
+            console.error(`Error processing asset ${assetFile}:`, error);
+          }
+        }
+      } catch (error) {
+        console.error(`Error checking file ${assetFile}:`, error);
       }
     }
-  }
+  
+    // Update asset references in CSS files
+    const allDistFiles = await getAllFiles(distDir);
+    const distCssFiles = allDistFiles.filter(file => file.endsWith('.css'));
+    for (const cssFile of distCssFiles) {
+      let cssContent = await Bun.file(cssFile).text();
+      cssContent = cssContent.replace(/url\(['"]?([^'"()]+)['"]?\)/g, (match, p1) => {
+        if (!p1.startsWith('http') && !p1.startsWith('data:')) {
+          return `url("../assets/${path.basename(p1)}")`;
+        }
+        return match;
+      });
+      await Bun.write(cssFile, cssContent);
+      console.log(`Updated asset references in CSS: ${path.relative(distDir, cssFile)}`);
+    }
+  
+    // Update asset references in HTML files
+    const distHtmlFiles = allDistFiles.filter(file => file.endsWith('.html'));
+    for (const htmlFile of distHtmlFiles) {
+      let htmlContent = await Bun.file(htmlFile).text();
+      htmlContent = htmlContent.replace(/src=['"]([^'"]+)['"]/g, (match, p1) => {
+        if (!p1.startsWith('http') && !p1.startsWith('data:')) {
+          return `src="assets/${path.basename(p1)}"`;
+        }
+        return match;
+      });
+      htmlContent = htmlContent.replace(/url\(['"]?([^'"()]+)['"]?\)/g, (match, p1) => {
+        if (!p1.startsWith('http') && !p1.startsWith('data:')) {
+          return `url("assets/${path.basename(p1)}")`;
+        }
+        return match;
+      });
+      await Bun.write(htmlFile, htmlContent);
+
+      console.log(`Updated asset references in HTML: ${path.relative(distDir, htmlFile)}`);
+    }
+}
+
   // async function lintStyles(distDir: string) {
   //   // const cssFiles = path.join(distDir, 'css', '*.css');
   //   // const lazy = postcss([autoprefixer]).process(css);
@@ -312,4 +371,3 @@ main().catch(console.error);
 
 
 console.log("Buns are in the oven.");
-console.log("");
