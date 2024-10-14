@@ -184,7 +184,6 @@ async function buildProject() {
       matches.forEach(match => {
         const assetPath = match.replace(/url\(['"]?|['"]?\)|src=['"]|['"]/g, '');
         if (!assetPath.startsWith('http') && !assetPath.startsWith('data:')) {
-          // Only add the asset if it's directly in the assets folder
           if (!path.dirname(assetPath).includes(path.sep)) {
             assetReferences.add(path.basename(assetPath));
           }
@@ -194,28 +193,22 @@ async function buildProject() {
   
     // Get all files in the root of the assets directory
     const assetFiles = await readdir(assetDir);
+    const existingAssets = new Set(assetFiles);
   
     // Copy referenced assets
     for (const assetFile of assetFiles) {
       const srcPath = path.join(assetDir, assetFile);
       const destPath = path.join(distAssetDir, assetFile);
   
-      // Check if it's a file (not a directory)
       try {
         const stats = await stat(srcPath);
         if (stats.isFile() && assetReferences.has(assetFile)) {
           try {
             if (srcPath.match(/\.(jpg|jpeg|png|webp|avif)$/i)) {
-              // Process image with Sharp
               let sharpInstance = sharp(srcPath);
-              
-              // You can add more image processing options here if needed
-              // For example: sharpInstance = sharpInstance.resize(800, 600);
-        
               await sharpInstance.toFile(destPath);
               console.log(`Optimized image: ${assetFile}`);
             } else {
-              // Copy non-image assets
               await Bun.write(destPath, Bun.file(srcPath));
               console.log(`Copied asset: ${assetFile}`);
             }
@@ -234,7 +227,7 @@ async function buildProject() {
     for (const cssFile of distCssFiles) {
       let cssContent = await Bun.file(cssFile).text();
       cssContent = cssContent.replace(/url\(['"]?([^'"()]+)['"]?\)/g, (match, p1) => {
-        if (!p1.startsWith('http') && !p1.startsWith('data:')) {
+        if (!p1.startsWith('http') && !p1.startsWith('data:') && existingAssets.has(path.basename(p1))) {
           return `url("../assets/${path.basename(p1)}")`;
         }
         return match;
@@ -248,22 +241,22 @@ async function buildProject() {
     for (const htmlFile of distHtmlFiles) {
       let htmlContent = await Bun.file(htmlFile).text();
       htmlContent = htmlContent.replace(/src=['"]([^'"]+)['"]/g, (match, p1) => {
-        if (!p1.startsWith('http') && !p1.startsWith('data:')) {
+        if (!p1.startsWith('http') && !p1.startsWith('data:') && existingAssets.has(path.basename(p1))) {
           return `src="assets/${path.basename(p1)}"`;
         }
         return match;
       });
       htmlContent = htmlContent.replace(/url\(['"]?([^'"()]+)['"]?\)/g, (match, p1) => {
-        if (!p1.startsWith('http') && !p1.startsWith('data:')) {
+        if (!p1.startsWith('http') && !p1.startsWith('data:') && existingAssets.has(path.basename(p1))) {
           return `url("assets/${path.basename(p1)}")`;
         }
         return match;
       });
       await Bun.write(htmlFile, htmlContent);
-
       console.log(`Updated asset references in HTML: ${path.relative(distDir, htmlFile)}`);
     }
-}
+  }
+
 
   // async function lintStyles(distDir: string) {
   //   // const cssFiles = path.join(distDir, 'css', '*.css');
