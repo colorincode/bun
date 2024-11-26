@@ -126,7 +126,7 @@ async function buildProject() {
         // Process HTML with posthtml
         const result = await posthtml([
           include({ 
-            root: path.join(srcDir, './partials') ,
+            root: path.join(srcDir, './') ,
             // root: srcDir,
             onError: (error) => {
               console.error(`Error including partial: ${error.message}`);
@@ -142,9 +142,10 @@ async function buildProject() {
       await Bun.write(destPath, htmlContent);
     } else if (!file.endsWith(".ts") && !file.endsWith(".d.ts")) {
       // this is there to make sure if it not ts (e.g., images, fonts) it will still handle the file writing without killing the build.
-      //this may need additions for syncing the path and such but hopefully not
-      await Bun.write(destPath, Bun.file(file));
+      //calling mmkdir b4 bun write
       await mkdir(path.dirname(destPath), { recursive: true });
+      await Bun.write(destPath, Bun.file(file));
+   
     }
 
     
