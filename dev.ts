@@ -54,32 +54,38 @@ async function getAllFiles(dir: string): Promise<string[]> {
 }
 
 async function buildProject() {
-    const srcDir = "./src";
-    const outDir = "./dist";
-    const allSrcFiles = await getAllFiles(srcDir);
-  
-    isBuilding = true;
-    try {
-      console.log("Building project, buns in the oven...");
-      await mkdir(outDir, { recursive: true });
-      
-      // Handle TS/JS files
-      const tsJsFiles = allSrcFiles.filter(file => file.endsWith(".ts") && !file.endsWith(".d.ts"));
-      const result = await Bun.build({
-        entrypoints: tsJsFiles,
-        outdir: path.join(outDir, 'js'), //this is to rename our dist dir to js not ts
-        target: "bun",
-        format: "esm",
-        sourcemap: "inline",
-        splitting: true, // 
-        minify: false,
-        plugins: [globResolverPlugin(), BunImageTransformPlugin()],
-      });
-  
-      if (!result.success) {
-        console.error("Uh, oh buns burning. Build failed:", result.logs);
-        return;
-      }
+  const srcDir = "./src";
+  const outDir = "./dist";
+  const allSrcFiles = await getAllFiles(srcDir);
+
+  isBuilding = true;
+  try {
+    console.log("Building project, buns in the oven...");
+    await mkdir(outDir, { recursive: true });
+    
+    // Handle TS/JS files
+    const tsJsFiles = allSrcFiles
+      .filter(file => file.endsWith(".ts") && !file.endsWith(".d.ts"))
+      .map(file => path.relative(srcDir, file));
+
+    const result = await Bun.build({
+      entrypoints: tsJsFiles,
+      outdir: path.join(outDir, 'js'),
+      root: srcDir,
+      target: "bun",
+      format: "esm",
+      sourcemap: "inline",
+      splitting: true,
+      minify: false,
+      naming: "/[name].js",
+      plugins: [globResolverPlugin(), BunImageTransformPlugin()],
+    });
+
+    if (!result.success) {
+      console.error("Uh, oh buns burning. Build failed:", result.logs);
+      return;
+    }
+
       // Create the css output directory
     await mkdir(path.join(outDir, 'css'), { recursive: true });
     // process css/scss and maintain dir structure of other stuff
@@ -113,6 +119,12 @@ async function buildProject() {
         code: Buffer.from(postCssResult.css),
         minify: true,
         targets: browserslistToTargets(browserslist('>= 0.25%')),
+        // drafts: {
+        //   customMedia: true,
+        //   nesting: true,
+        // },
+        include: 
+          Features.VendorPrefixes,
       });
 
       // Adjust the destination path to put the file in the css folder
@@ -126,7 +138,7 @@ async function buildProject() {
         // Process HTML with posthtml
         const result = await posthtml([
           include({ 
-            root: path.join(srcDir, './') ,
+            root: path.join(srcDir, './partials') ,
             // root: srcDir,
             onError: (error) => {
               console.error(`Error including partial: ${error.message}`);
@@ -137,15 +149,16 @@ async function buildProject() {
       htmlContent = htmlContent
       .replace(/\.scss/g, '.css')
       .replace(/\.\/scss\//g, './css/')
-      htmlContent = htmlContent.replace(/\.ts/g, '.js')
-      .replace('./ts/', './js/'); // added this concatted script to make sure that if we linked to ts it will replace with JS and read from the correct folder
+      htmlContent = htmlContent
+      .replace(/\.ts/g, '.js')
+      .replace(/\.\/ts\//g, './js/')
+      // added this concatted script to make sure that if we linked to ts it will replace with JS and read from the correct folder
       await Bun.write(destPath, htmlContent);
     } else if (!file.endsWith(".ts") && !file.endsWith(".d.ts")) {
       // this is there to make sure if it not ts (e.g., images, fonts) it will still handle the file writing without killing the build.
-      //calling mmkdir b4 bun write
-      await mkdir(path.dirname(destPath), { recursive: true });
+      //this may need additions for syncing the path and such but hopefully not
       await Bun.write(destPath, Bun.file(file));
-   
+      await mkdir(path.dirname(destPath), { recursive: true });
     }
 
     
@@ -176,10 +189,10 @@ async function buildProject() {
     // Filter HTML and SCSS files
     const htmlFiles = allSrcFiles.filter(file => file.endsWith('.html'));
     const scssFiles = allSrcFiles.filter(file => file.endsWith('.scss'));
-  
+    const jsFiles = allSrcFiles.filter(file => file.endsWith('.js') || file.endsWith('.ts'));
     // Extract asset references from HTML and SCSS files
     const assetReferences = new Set();
-    for (const file of [...htmlFiles, ...scssFiles]) {
+    for (const file of [...htmlFiles, ...scssFiles, ...jsFiles]) {
       const content = await Bun.file(file).text();
       const matches = content.match(/url\(['"]?([^'"()]+)['"]?\)|src=['"]([^'"]+)['"]/g) || [];
       matches.forEach(match => {
@@ -196,31 +209,32 @@ async function buildProject() {
     const assetFiles = await readdir(assetDir);
     const existingAssets = new Set(assetFiles);
   
-    // Copy referenced assets
-    for (const assetFile of assetFiles) {
-      const srcPath = path.join(assetDir, assetFile);
-      const destPath = path.join(distAssetDir, assetFile);
-  
+// Copy referenced assets
+for (const assetFile of assetFiles) {
+  const srcPath = path.join(assetDir, assetFile);
+  const destPath = path.join(distAssetDir, assetFile);
+
+  try {
+    const stats = await stat(srcPath);
+    if (stats.isFile() && (assetReferences.has(assetFile) || assetFile.endsWith('.json'))) {
       try {
-        const stats = await stat(srcPath);
-        if (stats.isFile() && assetReferences.has(assetFile)) {
-          try {
-            if (srcPath.match(/\.(jpg|jpeg|png|webp|avif)$/i)) {
-              let sharpInstance = sharp(srcPath);
-              await sharpInstance.toFile(destPath);
-              console.log(`Optimized image: ${assetFile}`);
-            } else {
-              await Bun.write(destPath, Bun.file(srcPath));
-              console.log(`Copied asset: ${assetFile}`);
-            }
-          } catch (error) {
-            console.error(`Error processing asset ${assetFile}:`, error);
-          }
+        if (srcPath.match(/\.(jpg|jpeg|png|webp|avif|gif)$/i)) {
+          let sharpInstance = sharp(srcPath);
+          await sharpInstance.toFile(destPath);
+          // console.log(`Optimized image: ${assetFile}`);
+        } else {
+          await Bun.write(destPath, Bun.file(srcPath));
+          // console.log(`Copied asset: ${assetFile}`);
         }
       } catch (error) {
-        console.error(`Error checking file ${assetFile}:`, error);
+        console.error(`Error processing asset ${assetFile}:`, error);
       }
     }
+  } catch (error) {
+    console.error(`Error checking file ${assetFile}:`, error);
+  }
+}
+
   
     // Update asset references in CSS files
     const allDistFiles = await getAllFiles(distDir);
@@ -234,7 +248,7 @@ async function buildProject() {
         return match;
       });
       await Bun.write(cssFile, cssContent);
-      console.log(`Updated asset references in CSS: ${path.relative(distDir, cssFile)}`);
+      // console.log(`Updated asset references in CSS: ${path.relative(distDir, cssFile)}`);
     }
   
     // Update asset references in HTML files
@@ -254,10 +268,9 @@ async function buildProject() {
         return match;
       });
       await Bun.write(htmlFile, htmlContent);
-      console.log(`Updated asset references in HTML: ${path.relative(distDir, htmlFile)}`);
+      // console.log(`Updated asset references in HTML: ${path.relative(distDir, htmlFile)}`);
     }
   }
-
 
   // async function lintStyles(distDir: string) {
   //   // const cssFiles = path.join(distDir, 'css', '*.css');
@@ -365,3 +378,4 @@ main().catch(console.error);
 
 
 console.log("Buns are in the oven.");
+console.log("");
